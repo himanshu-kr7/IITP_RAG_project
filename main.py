@@ -18,7 +18,7 @@ def create_rag_chain():
     Creates the Retrieval-Augmented Generation (RAG) chain using LCEL.
     """
     
-    # 1. Initialize the LLM
+    # 1. Initialize the LLM (Using OpenAI)
     llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.1)
 
     # 2. Load the embeddings model
@@ -32,8 +32,7 @@ def create_rag_chain():
     # 4. Create a retriever
     retriever = db.as_retriever(search_kwargs={'k': 3}) # 'k': 3 means it will retrieve the top 3 relevant chunks
 
-    # 5. Define the RAG prompt manually
-    # This is the exact prompt we were trying to download from the hub.
+    # 5. Define the RAG prompt manually (This replaces the 'hub')
     RAG_PROMPT_TEMPLATE = """
 Use the following pieces of context to answer the user's question.
 If you don't know the answer, just say that you don't know, don't try to make up an answer.
@@ -44,10 +43,8 @@ Question: {question}
 Helpful Answer:"""
 
     prompt = PromptTemplate.from_template(RAG_PROMPT_TEMPLATE)
-
     
-    # 6. Create the RAG chain using LCEL (LangChain Expression Language)
-    # This is the "modern" way to build chains.
+    # 6. Create the RAG chain using LCEL
     
     def format_docs(docs):
         # Joins the retrieved documents into a single string
@@ -70,7 +67,7 @@ def main():
     chain = create_rag_chain()
     
     print("--------------------------------------------------")
-    print("IIT Patna AI Document Query System (Modern LCEL)")
+    print("IIT Patna AI Document Query System (OpenAI STABLE)")
     print("Ask a question about your documents. Type 'exit' to quit.")
     print("--------------------------------------------------")
 
@@ -89,14 +86,13 @@ def main():
         try:
             print("Thinking...")
             
-            # With LCEL, we use .invoke() instead of .run() or .__call__()
             answer = chain.invoke(query)
             
             print("\n--- Answer ---")
             print(answer)
             
         except Exception as e:
-            print(f"An error occurred: {e}")
+            print(f"\nAn error occurred: {e}")
 
 if __name__ == "__main__":
     main()

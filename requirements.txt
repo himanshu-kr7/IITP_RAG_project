@@ -1,0 +1,10 @@
+langchain
+pypdf
+sentence-transformers
+faiss-cpu
+python-dotenv
+langchain-openai
+langchain-google-genai>=1.0.0
+langchain-core
+langchain_community
+google-genai

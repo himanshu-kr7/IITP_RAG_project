@@ -4,7 +4,9 @@ sentence-transformers
 faiss-cpu
 python-dotenv
 langchain-openai
-langchain-google-genai>=1.0.0
+langchain-google-genai
+google-generativeai
 langchain-core
 langchain_community
-google-genai
+streamlit
+pydantic<2

@@ -1,113 +1,113 @@
+import streamlit as st
 import os
-from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-from langchain_community.embeddings import SentenceTransformerEmbeddings
+from langchain_openai import OpenAI, ChatOpenAI
 from langchain_community.vectorstores import FAISS
+from langchain_openai import OpenAIEmbeddings
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
+from langchain_community.document_loaders import PyPDFDirectoryLoader, DirectoryLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-# Load environment variables (your OPENAI_API_KEY)
+# --- APPLICATION SETUP ---
+
+# Load environment variables (ensure .env file is present)
+from dotenv import load_dotenv
 load_dotenv()
 
-# Define the path for the FAISS vector store
-DB_FAISS_PATH = "vectorstore/db_faiss"
+# Set Streamlit page configuration
+st.set_page_config(page_title="Chat with Your Documents", page_icon="📄")
 
-def create_rag_chain():
-    """
-    Creates a Conversational Retrieval (RAG) chain with memory.
-    """
+# Set the title for the app
+st.title("Chat with Your Documents 📄")
 
-    # 1. Initialize the LLM (Using OpenAI)
-    llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.1)
+# --- GLOBAL VARIABLES & CACHING ---
 
-    # 2. Load the embeddings model
-    embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+# Define the paths
+VECTOR_STORE_PATH = "vectorstore/db_faiss"
+DATA_PATH = "data"
 
-    # 3. Load the FAISS vector store
-    print("Loading vector store...")
-    db = FAISS.load_local(DB_FAISS_PATH, embeddings, allow_dangerous_deserialization=True)
-    print("Vector store loaded.")
+# Cache the vector store and retriever to avoid reloading on every interaction
+@st.cache_resource
+def load_retriever():
+    if not os.path.exists(VECTOR_STORE_PATH):
+        st.error(f"Vector store not found at {VECTOR_STORE_PATH}. Please run `ingest.py` first.")
+        return None
 
-    # 4. Create a retriever
-    retriever = db.as_retriever(search_kwargs={'k': 3}) # 'k': 3 means it will retrieve the top 3 relevant chunks
+    embeddings = OpenAIEmbeddings()
+    vector_store = FAISS.load_local(VECTOR_STORE_PATH, embeddings, allow_dangerous_deserialization=True)
+    return vector_store.as_retriever(search_type="similarity", search_kwargs={'k': 4})
 
-    # 5. Create a memory buffer
-    # 'chat_history' is the key LangChain uses to pass history.
-    # 'return_messages=True' ensures we get a list of messages.
+# Cache the conversational RAG chain
+@st.cache_resource
+def get_conversational_rag_chain(_retriever):
+    # We use a simple ConversationBufferMemory
     memory = ConversationBufferMemory(
-        memory_key='chat_history',
+        memory_key="chat_history",
         return_messages=True,
         output_key='answer' # Specify 'answer' as the output key
     )
 
-    # 6. Create the ConversationalRetrievalChain
-    # This chain does all the hard work:
-    # - Takes the new question
-    # - Looks at the chat_history
-    # - Condenses them into a new, standalone question
-    # - Retrieves documents based on that new question
-    # - Generates an answer
-    # - It also automatically returns the source documents!
+    llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
+
     chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
-        retriever=retriever,
+        retriever=_retriever,
         memory=memory,
-        return_source_documents=True, # This makes it return the sources
+        return_source_documents=True, # We'll want the sources
         output_key='answer' # Specify 'answer' as the output key
     )
-
     return chain
 
-def main():
-    """
-    Main function to run the RAG query system.
-    """
-    # Create the RAG chain
-    chain = create_rag_chain()
+# Load the components
+retriever = load_retriever()
+if retriever:
+    rag_chain = get_conversational_rag_chain(retriever)
+else:
+    rag_chain = None
 
-    print("--------------------------------------------------")
-    print("IIT Patna AI Document Query System (with Memory)")
-    print("Ask a question about your documents. Type 'exit' to quit.")
-    print("--------------------------------------------------")
+# --- STREAMLIT CHAT INTERFACE ---
 
-    # We don't need to manually manage chat_history here,
-    # the 'memory' object inside the chain does it for us.
+# Initialize chat history in session state if it doesn't exist
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-    while True:
-        # Get user input
-        query = input("\nAsk your question: ")
+# Display prior chat messages
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-        if query.lower() == 'exit':
-            print("Exiting...")
-            break
+# Handle new user input
+if prompt := st.chat_input("Ask a question about your documents..."):
 
-        if not query.strip():
-            continue
+    if not rag_chain:
+        st.error("The application is not initialized. Please run `ingest.py`.")
+    else:
+        # 1. Add user message to session state and display it
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-        # Get the answer from the chain
-        try:
-            print("Thinking...")
+        # 2. Get the bot's response
+        # We pass the prompt (question) and the existing chat history
+        with st.spinner("Thinking..."):
+            history = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state.messages[:-1]]
 
-            # We just pass the new question.
-            # The chain will automatically pull from its internal memory.
-            # The input must be a dictionary with a 'question' key.
-            response = chain.invoke({"question": query})
+            # Call the chain
+            result = rag_chain.invoke({
+                "question": prompt,
+                "chat_history": history
+            })
 
-            print("\n--- Answer ---")
-            print(response['answer'])
+            answer = result["answer"]
+            sources = result["source_documents"]
 
-            print("\n--- Sources ---")
-            # The sources are now in a key called 'source_documents'
-            for doc in response['source_documents']:
-                # Extract metadata
-                source = doc.metadata.get('source', 'Unknown source')
-                page = doc.metadata.get('page', 'Unknown page')
+            # 3. Add bot response to session state and display it
+            st.session_state.messages.append({"role": "assistant", "content": answer})
+            with st.chat_message("assistant"):
+                st.markdown(answer)
 
-                # Print the source and page number
-                print(f"  - Source: {source},  Page: {page + 1}")
-
-        except Exception as e:
-            print(f"\nAn error occurred: {e}")
-
-if __name__ == "__main__":
-    main()
+                # Optionally display sources
+                with st.expander("Show Sources"):
+                    for i, doc in enumerate(sources):
+                        st.write(f"**Source {i+1}:** {doc.metadata.get('source', 'Unknown')}")
+                        st.caption(f"Content: {doc.page_content[:150]}...")

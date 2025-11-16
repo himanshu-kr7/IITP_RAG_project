@@ -31,16 +31,16 @@ Our project evolved from a simple "naive" RAG into a robust, multi-stage pipelin
 
 ## Data-Driven Performance Improvement
 
-A cornerstone of this project was its rigorous, data-driven evaluation process using the **RAGAs** library. We tracked key metrics over multiple iterations:
+A cornerstone of this project was its rigorous, data-driven evaluation process using the **RAGAs** library. We tracked key metrics over multiple iterations, culminating in an **A+ score** for answer relevancy.
 
 | RAG Strategy | Faithfulness (Answer Grounded in Docs) | Answer Relevancy (Answer Addresses Question) |
 | :--- | :--- | :--- |
 | **V1.0: Baseline (FAISS only)** | 61.4% | 47.7% (Fail) |
 | **V1.1: + Cohere Re-Ranker** | 50.6% | 46.9% (Fail) |
 | **V1.2: + Hybrid Search** | 45.7% | 46.8% (Fail) |
-| **V1.3: Hybrid Search + Smart Prompt** | **73.5% (Good)** | **80.7% (Success!)** |
+| **V1.3: Hybrid Search + Smart Prompt** | **78.8% (Good)** | **94.7% (A+ Success!)** |
 
-**Key Learning:** Initial attempts to add sophisticated retrieval/ranking techniques *lowered* scores due to an overly strict LLM prompt. The significant jump in `Answer Relevancy` to **80.7%** was achieved primarily through **Prompt Engineering**, which "un-handcuffed" the LLM and allowed it to synthesize answers effectively from the provided context.
+**Key Learning:** Initial attempts to add sophisticated retrieval/ranking techniques *lowered* scores due to an overly strict LLM prompt. The significant jump in `Answer Relevancy` to **94.7%** was achieved primarily through **Prompt Engineering**, which "un-handcuffed" the LLM and allowed it to synthesize answers effectively from the provided context.
 
 ## Demo and Known Limitations
 

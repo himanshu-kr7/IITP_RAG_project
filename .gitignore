@@ -1,2 +1,6 @@
 venv/
 .env
+
+# Local data and generated vector stores
+/data/
+/vectorstore/

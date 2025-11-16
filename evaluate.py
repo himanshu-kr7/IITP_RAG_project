@@ -47,7 +47,7 @@ def load_models():
     if not os.path.exists(VECTOR_STORE_PATH):
         raise FileNotFoundError(f"Vector store not found at {VECTOR_STORE_PATH}.")
 
-    # 1. Load documents from disk (for BM25)
+    # 1. Load all documents from disk (for BM25)
     print("Loading documents for BM25 index...")
     loader = PyPDFDirectoryLoader(DATA_PATH)
     all_docs = loader.load()
@@ -115,7 +115,9 @@ if retriever and llm:
             "question": itemgetter("question"),
             "chat_history": itemgetter("chat_history"),
         })
+        # --- THIS IS THE FIX ---
         | RunnableParallel({
+        # ----------------------
             "context": itemgetter("documents") | RunnableLambda(format_docs),
             "documents": itemgetter("documents"),
             "question": itemgetter("question"),

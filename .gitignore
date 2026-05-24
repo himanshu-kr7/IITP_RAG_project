@@ -3,4 +3,3 @@ venv/
 
 # Local data and generated vector stores
 /data/
-/vectorstore/
